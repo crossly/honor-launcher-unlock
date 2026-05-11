@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Honor Launcher Unlock</string>
+    <string name="xposed_description">Unlock Honor default launcher restrictions for third-party HOME apps.</string>
+    <string-array name="xposedscope">
+        <item>android</item>
+        <item>system</item>
+        <item>com.android.permissioncontroller</item>
+    </string-array>
+</resources>

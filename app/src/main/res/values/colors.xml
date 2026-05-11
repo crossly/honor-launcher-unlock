@@ -1,0 +1,5 @@
+<resources>
+    <color name="launcher_unlock_bg">#0E1116</color>
+    <color name="launcher_unlock_fg">#78F0B0</color>
+    <color name="launcher_unlock_fg_alt">#4DA3FF</color>
+</resources>

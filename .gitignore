@@ -1,0 +1,27 @@
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.DS_Store
+
+# Android signing / local artifacts
+*.jks
+*.idsig
+*.apk
+*.ap_
+
+# Reverse engineering / device artifacts
+services.jar
+services.odex
+services.vdex
+services_decoded/
+PermissionController.apk
+PermissionController_decoded/
+modules_config*.db
+modules_config*.db-shm
+modules_config*.db-wal
+roles.xml.current
+
+# Scratch files
+build.log
