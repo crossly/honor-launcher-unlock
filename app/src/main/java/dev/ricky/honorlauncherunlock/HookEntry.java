@@ -15,15 +15,14 @@ public final class HookEntry implements IXposedHookLoadPackage {
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
-        if ("android".equals(lpparam.packageName)
-                && "android".equals(lpparam.processName)) {
+        if (LauncherUnlockPolicy.isSystemServerTarget(lpparam.packageName, lpparam.processName)) {
             XposedBridge.log(TAG + ": loaded in " + lpparam.packageName
                     + " process=" + lpparam.processName);
             hookHomeAlreadyDefaultGate(lpparam.classLoader);
             return;
         }
 
-        if ("com.android.permissioncontroller".equals(lpparam.packageName)) {
+        if (LauncherUnlockPolicy.isPermissionControllerTarget(lpparam.packageName)) {
             XposedBridge.log(TAG + ": loaded in " + lpparam.packageName
                     + " process=" + lpparam.processName);
             hookPermissionControllerAntiMal(lpparam.classLoader);
@@ -33,9 +32,9 @@ public final class HookEntry implements IXposedHookLoadPackage {
     private static void hookHomeAlreadyDefaultGate(ClassLoader classLoader) {
         try {
             XposedHelpers.findAndHookMethod(
-                    "com.android.server.pm.PreferredActivityHelper",
+                    LauncherUnlockPolicy.preferredActivityHelperClassName(),
                     classLoader,
-                    "isAlreadyDefaultHomeActivity",
+                    LauncherUnlockPolicy.alreadyDefaultHomeMethodName(),
                     ComponentName.class,
                     int.class,
                     new XC_MethodHook() {
@@ -63,9 +62,9 @@ public final class HookEntry implements IXposedHookLoadPackage {
     private static void hookPermissionControllerAntiMal(ClassLoader classLoader) {
         try {
             XposedHelpers.findAndHookMethod(
-                    "r2.b",
+                    LauncherUnlockPolicy.antiMalProtectionClassName(),
                     classLoader,
-                    "d",
+                    LauncherUnlockPolicy.allowLauncherMethodName(),
                     String.class,
                     int.class,
                     new XC_MethodHook() {
@@ -85,9 +84,9 @@ public final class HookEntry implements IXposedHookLoadPackage {
 
         try {
             XposedHelpers.findAndHookMethod(
-                    "r2.b",
+                    LauncherUnlockPolicy.antiMalProtectionClassName(),
                     classLoader,
-                    "c",
+                    LauncherUnlockPolicy.resetLauncherMethodName(),
                     Context.class,
                     UserHandle.class,
                     new XC_MethodHook() {

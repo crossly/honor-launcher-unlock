@@ -13,7 +13,7 @@
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="Allow selected third-party launchers to pass Honor HOME AntiMal checks." />
+            android:value="@string/xposed_description" />
         <meta-data
             android:name="xposedminversion"
             android:value="93" />

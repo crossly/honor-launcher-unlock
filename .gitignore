@@ -10,6 +10,8 @@ local.properties
 *.idsig
 *.apk
 *.ap_
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
 
 # Reverse engineering / device artifacts
 services.jar
@@ -25,3 +27,4 @@ roles.xml.current
 
 # Scratch files
 build.log
+docs/plans/

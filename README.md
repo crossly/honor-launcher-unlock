@@ -23,10 +23,24 @@ Requires:
 Build release APK:
 
 ```bash
-gradle :app:assembleRelease
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew :app:assembleRelease
+```
+
+Build debug APK:
+
+```bash
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew :app:assembleDebug
+```
+
+Run unit tests:
+
+```bash
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew :app:testDebugUnitTest
 ```
 
 ## Notes
 
 - Intended for rooted Honor devices with LSPosed
+- Enable the module for `android`, `system`, and `com.android.permissioncontroller`
+- After updating the module, reboot or force-stop the target process where practical so LSPosed reloads the hook
 - Tested against a system where Nova Launcher is installed as a third-party HOME candidate
