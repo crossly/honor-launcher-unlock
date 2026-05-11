@@ -6,12 +6,18 @@ android {
     namespace "dev.ricky.honorlauncherunlock"
     compileSdk 35
 
+    def releaseVersionCode = providers.gradleProperty("releaseVersionCode")
+            .map { it as Integer }
+            .orElse(5)
+    def releaseVersionName = providers.gradleProperty("releaseVersionName")
+            .orElse("1.0.4")
+
     defaultConfig {
         applicationId "dev.ricky.honorlauncherunlock"
         minSdk 26
         targetSdk 35
-        versionCode 5
-        versionName "1.0.4"
+        versionCode releaseVersionCode.get()
+        versionName releaseVersionName.get()
     }
 
     compileOptions {

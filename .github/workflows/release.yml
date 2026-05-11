@@ -33,8 +33,35 @@ jobs:
       - name: Run unit tests
         run: ./gradlew :app:testDebugUnitTest
 
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+            version_name="${major}.${minor}.${patch}"
+            version_code=$((10#${major} * 10000 + 10#${minor} * 100 + 10#${patch}))
+            echo "version_name=${version_name}" >> "$GITHUB_OUTPUT"
+            echo "version_code=${version_code}" >> "$GITHUB_OUTPUT"
+            echo "is_tag_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version_name=" >> "$GITHUB_OUTPUT"
+            echo "version_code=" >> "$GITHUB_OUTPUT"
+            echo "is_tag_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build release APK
-        run: ./gradlew :app:assembleRelease
+        run: |
+          if [[ "${{ steps.version.outputs.is_tag_release }}" == "true" ]]; then
+            ./gradlew :app:assembleRelease \
+              -PreleaseVersionName="${{ steps.version.outputs.version_name }}" \
+              -PreleaseVersionCode="${{ steps.version.outputs.version_code }}"
+          else
+            ./gradlew :app:assembleRelease
+          fi
 
       - name: Read APK metadata
         id: metadata
@@ -48,7 +75,7 @@ jobs:
           element = data["elements"][0]
           version_name = element["versionName"]
           version_code = element["versionCode"]
-          normalized_version = version_name.replace("/", "-").replace(" ", "")
+          normalized_version = version_name.replace("/", "-").replace(" ", "").replace("(", "").replace(")", "")
           print(f"version_name={version_name}")
           print(f"version_code={version_code}")
           print(f"normalized_version={normalized_version}")
