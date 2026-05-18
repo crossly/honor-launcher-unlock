@@ -4,6 +4,7 @@
     <string-array name="xposedscope">
         <item>android</item>
         <item>system</item>
+        <item>com.android.settings</item>
         <item>com.android.permissioncontroller</item>
     </string-array>
 </resources>

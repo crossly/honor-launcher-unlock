@@ -29,13 +29,43 @@ public class LauncherUnlockPolicyTest {
     }
 
     @Test
+    public void settingsTargetMatchesAndroidSettings() {
+        assertTrue(LauncherUnlockPolicy.isSettingsTarget("com.android.settings"));
+    }
+
+    @Test
+    public void homeSettingsActionShouldRedirect() {
+        assertTrue(LauncherUnlockPolicy.shouldRedirectToLauncherPicker(
+                "android.settings.HOME_SETTINGS",
+                null));
+    }
+
+    @Test
+    public void homeRoleRequestShouldRedirect() {
+        assertTrue(LauncherUnlockPolicy.shouldRedirectToLauncherPicker(
+                "android.app.role.action.REQUEST_ROLE",
+                "android.app.role.HOME"));
+    }
+
+    @Test
+    public void nonHomeRoleRequestShouldNotRedirect() {
+        assertFalse(LauncherUnlockPolicy.shouldRedirectToLauncherPicker(
+                "android.app.role.action.REQUEST_ROLE",
+                "android.app.role.BROWSER"));
+    }
+
+    @Test
+    public void unrelatedSettingsActionShouldNotRedirect() {
+        assertFalse(LauncherUnlockPolicy.shouldRedirectToLauncherPicker(
+                "android.settings.WIFI_SETTINGS",
+                null));
+    }
+
+    @Test
     public void exposesHookTargetNamesForHookEntry() {
         assertEquals("com.android.server.pm.PreferredActivityHelper",
                 LauncherUnlockPolicy.preferredActivityHelperClassName());
         assertEquals("isAlreadyDefaultHomeActivity",
                 LauncherUnlockPolicy.alreadyDefaultHomeMethodName());
-        assertEquals("r2.b", LauncherUnlockPolicy.antiMalProtectionClassName());
-        assertEquals("d", LauncherUnlockPolicy.allowLauncherMethodName());
-        assertEquals("c", LauncherUnlockPolicy.resetLauncherMethodName());
     }
 }

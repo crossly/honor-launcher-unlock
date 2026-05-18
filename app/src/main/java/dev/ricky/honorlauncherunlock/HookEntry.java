@@ -1,8 +1,9 @@
 package dev.ricky.honorlauncherunlock;
 
+import android.app.Activity;
 import android.content.ComponentName;
-import android.content.Context;
-import android.os.UserHandle;
+import android.content.Intent;
+import android.os.Bundle;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
@@ -22,10 +23,11 @@ public final class HookEntry implements IXposedHookLoadPackage {
             return;
         }
 
-        if (LauncherUnlockPolicy.isPermissionControllerTarget(lpparam.packageName)) {
+        if (LauncherUnlockPolicy.isPermissionControllerTarget(lpparam.packageName)
+                || LauncherUnlockPolicy.isSettingsTarget(lpparam.packageName)) {
             XposedBridge.log(TAG + ": loaded in " + lpparam.packageName
                     + " process=" + lpparam.processName);
-            hookPermissionControllerAntiMal(lpparam.classLoader);
+            hookDefaultHomeEntryRedirect(lpparam.classLoader);
         }
     }
 
@@ -59,47 +61,53 @@ public final class HookEntry implements IXposedHookLoadPackage {
         }
     }
 
-    private static void hookPermissionControllerAntiMal(ClassLoader classLoader) {
+    private static void hookDefaultHomeEntryRedirect(ClassLoader classLoader) {
         try {
             XposedHelpers.findAndHookMethod(
-                    LauncherUnlockPolicy.antiMalProtectionClassName(),
-                    classLoader,
-                    LauncherUnlockPolicy.allowLauncherMethodName(),
-                    String.class,
-                    int.class,
+                    Activity.class,
+                    "onCreate",
+                    Bundle.class,
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
-                            String packageName = (String) param.args[0];
-                            XposedBridge.log(TAG + ": allowing launcher in settings for "
-                                    + packageName + " user=" + param.args[1]);
-                            param.setResult(true);
+                            redirectHomeEntryIfNeeded((Activity) param.thisObject);
                         }
                     });
-            XposedBridge.log(TAG + ": hooked AntiMalProtectionUtils.d");
+            XposedBridge.log(TAG + ": hooked Activity.onCreate for HOME entry redirects");
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": failed to hook AntiMalProtectionUtils.d");
+            XposedBridge.log(TAG + ": failed to hook Activity.onCreate redirect");
             XposedBridge.log(t);
+        }
+    }
+
+    private static boolean redirectHomeEntryIfNeeded(Activity activity) {
+        if (activity == null) {
+            return false;
         }
 
-        try {
-            XposedHelpers.findAndHookMethod(
-                    LauncherUnlockPolicy.antiMalProtectionClassName(),
-                    classLoader,
-                    LauncherUnlockPolicy.resetLauncherMethodName(),
-                    Context.class,
-                    UserHandle.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            XposedBridge.log(TAG + ": blocked PermissionController launcher reset");
-                            param.setResult(null);
-                        }
-                    });
-            XposedBridge.log(TAG + ": hooked AntiMalProtectionUtils.c");
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + ": failed to hook AntiMalProtectionUtils.c");
-            XposedBridge.log(t);
+        Intent sourceIntent = activity.getIntent();
+        if (sourceIntent == null) {
+            return false;
         }
+
+        String roleName = sourceIntent.getStringExtra("android.app.role.extra.ROLE_NAME");
+        if (!LauncherUnlockPolicy.shouldRedirectToLauncherPicker(
+                sourceIntent.getAction(),
+                roleName)) {
+            return false;
+        }
+
+        Intent pickerIntent = new Intent();
+        pickerIntent.setClassName(
+                "dev.ricky.honorlauncherunlock",
+                "dev.ricky.honorlauncherunlock.LauncherPickerActivity");
+        pickerIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        activity.startActivity(pickerIntent);
+        activity.finish();
+        activity.overridePendingTransition(0, 0);
+        XposedBridge.log(TAG + ": redirected HOME entry action="
+                + sourceIntent.getAction()
+                + " role=" + roleName);
+        return true;
     }
 }
