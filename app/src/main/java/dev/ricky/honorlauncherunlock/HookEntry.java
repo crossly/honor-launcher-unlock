@@ -9,7 +9,9 @@ import android.content.pm.ResolveInfo;
 import android.os.UserHandle;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
@@ -66,20 +68,92 @@ public final class HookEntry implements IXposedHookLoadPackage {
     }
 
     private static void hookHomeRoleQualification(ClassLoader classLoader) {
-        for (String roleModelClassName : LauncherUnlockPolicy.roleModelClassNames()) {
-            hookHomeRoleQualifiedPackages(classLoader, roleModelClassName);
-            hookHomeRolePackageQualification(classLoader, roleModelClassName);
-            hookLegacyHomeRolePackageQualification(classLoader, roleModelClassName);
+        Set<Class<?>> roleClasses = findRoleModelClasses(classLoader);
+        if (roleClasses.isEmpty()) {
+            XposedBridge.log(TAG + ": no Role model class found in PermissionController");
+            return;
+        }
+
+        for (Class<?> roleClass : roleClasses) {
+            hookHomeRoleQualifiedPackages(roleClass);
+            hookHomeRolePackageQualification(roleClass);
+            hookLegacyHomeRolePackageQualification(roleClass);
         }
     }
 
-    private static void hookHomeRoleQualifiedPackages(
-            ClassLoader classLoader,
-            String roleModelClassName) {
+    private static Set<Class<?>> findRoleModelClasses(ClassLoader classLoader) {
+        Set<Class<?>> roleClasses = new LinkedHashSet<>();
+        for (String roleModelClassName : LauncherUnlockPolicy.roleModelClassNames()) {
+            Class<?> roleClass = XposedHelpers.findClassIfExists(roleModelClassName, classLoader);
+            if (roleClass != null) {
+                roleClasses.add(roleClass);
+            }
+        }
+
+        roleClasses.addAll(findLoadedRoleModelClasses(classLoader));
+        return roleClasses;
+    }
+
+    private static List<Class<?>> findLoadedRoleModelClasses(ClassLoader classLoader) {
+        List<Class<?>> roleClasses = new ArrayList<>();
+        try {
+            Object pathList = XposedHelpers.getObjectField(classLoader, "pathList");
+            Object[] dexElements = (Object[]) XposedHelpers.getObjectField(pathList, "dexElements");
+            for (Object dexElement : dexElements) {
+                Object dexFile = XposedHelpers.getObjectField(dexElement, "dexFile");
+                if (dexFile == null) {
+                    continue;
+                }
+
+                java.util.Enumeration<String> entries = ((dalvik.system.DexFile) dexFile).entries();
+                while (entries.hasMoreElements()) {
+                    String className = entries.nextElement();
+                    if (!couldBeScannedClass(className)) {
+                        continue;
+                    }
+
+                    Class<?> roleClass = XposedHelpers.findClassIfExists(className, classLoader);
+                    if (roleClass != null && hasRoleModelMethods(roleClass)) {
+                        roleClasses.add(roleClass);
+                        XposedBridge.log(TAG + ": discovered Role model class " + className);
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": failed to scan PermissionController role classes: " + t);
+        }
+        return roleClasses;
+    }
+
+    private static boolean couldBeScannedClass(String className) {
+        return className != null
+                && className.indexOf('$') < 0
+                && !className.startsWith("android.")
+                && !className.startsWith("androidx.")
+                && !className.startsWith("java.")
+                && !className.startsWith("javax.")
+                && !className.startsWith("kotlin.")
+                && !className.startsWith("kotlinx.");
+    }
+
+    private static boolean hasRoleModelMethods(Class<?> roleClass) {
+        return XposedHelpers.findMethodExactIfExists(
+                roleClass,
+                "getQualifyingPackagesAsUser",
+                UserHandle.class,
+                Context.class) != null
+                || XposedHelpers.findMethodExactIfExists(
+                        roleClass,
+                        "isPackageQualifiedAsUser",
+                        String.class,
+                        UserHandle.class,
+                        Context.class) != null;
+    }
+
+    private static void hookHomeRoleQualifiedPackages(Class<?> roleClass) {
         try {
             XposedHelpers.findAndHookMethod(
-                    roleModelClassName,
-                    classLoader,
+                    roleClass,
                     "getQualifyingPackagesAsUser",
                     UserHandle.class,
                     Context.class,
@@ -97,22 +171,18 @@ public final class HookEntry implements IXposedHookLoadPackage {
                         }
                     });
 
-            XposedBridge.log(TAG + ": hooked " + roleModelClassName
+            XposedBridge.log(TAG + ": hooked " + roleClass.getName()
                     + ".getQualifyingPackagesAsUser for HOME");
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": failed to hook " + roleModelClassName
-                    + ".getQualifyingPackagesAsUser");
-            XposedBridge.log(t);
+            XposedBridge.log(TAG + ": unavailable " + roleClass.getName()
+                    + ".getQualifyingPackagesAsUser: " + t);
         }
     }
 
-    private static void hookHomeRolePackageQualification(
-            ClassLoader classLoader,
-            String roleModelClassName) {
+    private static void hookHomeRolePackageQualification(Class<?> roleClass) {
         try {
             XposedHelpers.findAndHookMethod(
-                    roleModelClassName,
-                    classLoader,
+                    roleClass,
                     "isPackageQualifiedAsUser",
                     String.class,
                     UserHandle.class,
@@ -134,22 +204,18 @@ public final class HookEntry implements IXposedHookLoadPackage {
                         }
                     });
 
-            XposedBridge.log(TAG + ": hooked " + roleModelClassName
+            XposedBridge.log(TAG + ": hooked " + roleClass.getName()
                     + ".isPackageQualifiedAsUser for HOME");
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": failed to hook " + roleModelClassName
-                    + ".isPackageQualifiedAsUser");
-            XposedBridge.log(t);
+            XposedBridge.log(TAG + ": unavailable " + roleClass.getName()
+                    + ".isPackageQualifiedAsUser: " + t);
         }
     }
 
-    private static void hookLegacyHomeRolePackageQualification(
-            ClassLoader classLoader,
-            String roleModelClassName) {
+    private static void hookLegacyHomeRolePackageQualification(Class<?> roleClass) {
         try {
             XposedHelpers.findAndHookMethod(
-                    roleModelClassName,
-                    classLoader,
+                    roleClass,
                     "isPackageQualified",
                     String.class,
                     Context.class,
@@ -170,12 +236,11 @@ public final class HookEntry implements IXposedHookLoadPackage {
                         }
                     });
 
-            XposedBridge.log(TAG + ": hooked " + roleModelClassName
+            XposedBridge.log(TAG + ": hooked " + roleClass.getName()
                     + ".isPackageQualified for HOME");
         } catch (Throwable t) {
-            XposedBridge.log(TAG + ": failed to hook " + roleModelClassName
-                    + ".isPackageQualified");
-            XposedBridge.log(t);
+            XposedBridge.log(TAG + ": unavailable " + roleClass.getName()
+                    + ".isPackageQualified: " + t);
         }
     }
 
