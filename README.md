@@ -5,12 +5,14 @@ LSPosed module for Honor devices that removes the vendor restriction forcing `co
 ## What it does
 
 - Bypasses Honor HOME AntiMal checks in `system_server`
+- Keeps real third-party HOME apps visible in the system default-launcher list
 - Leaves the system default-launcher UI in place so users can switch both to
   third-party launchers and back to Honor Launcher
 
 ## Current targets
 
 - `android`
+- `com.android.permissioncontroller`
 
 ## Build
 
@@ -40,6 +42,6 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew :app:testDebugUnitTest
 ## Notes
 
 - Intended for rooted Honor devices with LSPosed
-- Enable the module for `android` / `system`
+- Enable the module for `android`, `system`, and `com.android.permissioncontroller`
 - After updating the module, reboot or force-stop the target process where practical so LSPosed reloads the hook
 - Tested against a system where Nova Launcher is installed as a third-party HOME candidate

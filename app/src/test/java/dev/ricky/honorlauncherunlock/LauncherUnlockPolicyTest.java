@@ -19,10 +19,26 @@ public class LauncherUnlockPolicyTest {
     }
 
     @Test
+    public void permissionControllerTargetMatchesPackage() {
+        assertTrue(LauncherUnlockPolicy.isPermissionControllerTarget(
+                "com.android.permissioncontroller"));
+    }
+
+    @Test
+    public void permissionControllerTargetRejectsOtherPackages() {
+        assertFalse(LauncherUnlockPolicy.isPermissionControllerTarget("android"));
+    }
+
+    @Test
     public void exposesHookTargetNamesForHookEntry() {
         assertEquals("com.android.server.pm.PreferredActivityHelper",
                 LauncherUnlockPolicy.preferredActivityHelperClassName());
         assertEquals("isAlreadyDefaultHomeActivity",
                 LauncherUnlockPolicy.alreadyDefaultHomeMethodName());
+        assertEquals("com.android.role.controller.model.Role",
+                LauncherUnlockPolicy.roleModelClassNames()[0]);
+        assertEquals("com.android.permissioncontroller.role.model.Role",
+                LauncherUnlockPolicy.roleModelClassNames()[1]);
+        assertEquals("android.app.role.HOME", LauncherUnlockPolicy.homeRoleName());
     }
 }
