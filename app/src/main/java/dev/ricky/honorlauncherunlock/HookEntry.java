@@ -90,10 +90,9 @@ public final class HookEntry implements IXposedHookLoadPackage {
                                 return;
                             }
 
-                            UserHandle userHandle = (UserHandle) param.args[0];
                             Context context = (Context) param.args[1];
                             List<String> result = asMutableStringList(param.getResult());
-                            appendHomePackages(result, userHandle, context);
+                            appendHomePackages(result, context);
                             param.setResult(result);
                         }
                     });
@@ -126,9 +125,8 @@ public final class HookEntry implements IXposedHookLoadPackage {
                             }
 
                             String packageName = (String) param.args[0];
-                            UserHandle userHandle = (UserHandle) param.args[1];
                             Context context = (Context) param.args[2];
-                            if (hasHomeActivity(packageName, userHandle, context)) {
+                            if (hasHomeActivity(packageName, context)) {
                                 XposedBridge.log(TAG + ": qualifying HOME package "
                                         + packageName);
                                 param.setResult(true);
@@ -164,8 +162,7 @@ public final class HookEntry implements IXposedHookLoadPackage {
 
                             String packageName = (String) param.args[0];
                             Context context = (Context) param.args[1];
-                            if (hasHomeActivity(packageName, android.os.Process.myUserHandle(),
-                                    context)) {
+                            if (hasHomeActivity(packageName, context)) {
                                 XposedBridge.log(TAG + ": qualifying legacy HOME package "
                                         + packageName);
                                 param.setResult(true);
@@ -205,11 +202,8 @@ public final class HookEntry implements IXposedHookLoadPackage {
         return new ArrayList<>();
     }
 
-    private static void appendHomePackages(
-            List<String> packages,
-            UserHandle userHandle,
-            Context context) {
-        List<ResolveInfo> homeActivities = queryHomeActivities(userHandle, context);
+    private static void appendHomePackages(List<String> packages, Context context) {
+        List<ResolveInfo> homeActivities = queryHomeActivities(context);
         for (ResolveInfo resolveInfo : homeActivities) {
             ActivityInfo activityInfo = resolveInfo.activityInfo;
             if (activityInfo == null || activityInfo.packageName == null) {
@@ -224,15 +218,12 @@ public final class HookEntry implements IXposedHookLoadPackage {
         }
     }
 
-    private static boolean hasHomeActivity(
-            String packageName,
-            UserHandle userHandle,
-            Context context) {
+    private static boolean hasHomeActivity(String packageName, Context context) {
         if (packageName == null) {
             return false;
         }
 
-        List<ResolveInfo> homeActivities = queryHomeActivities(userHandle, context);
+        List<ResolveInfo> homeActivities = queryHomeActivities(context);
         for (ResolveInfo resolveInfo : homeActivities) {
             ActivityInfo activityInfo = resolveInfo.activityInfo;
             if (activityInfo != null && packageName.equals(activityInfo.packageName)) {
@@ -242,15 +233,14 @@ public final class HookEntry implements IXposedHookLoadPackage {
         return false;
     }
 
-    private static List<ResolveInfo> queryHomeActivities(UserHandle userHandle, Context context) {
-        if (userHandle == null || context == null) {
+    private static List<ResolveInfo> queryHomeActivities(Context context) {
+        if (context == null) {
             return new ArrayList<>();
         }
 
         Intent homeIntent = new Intent(Intent.ACTION_MAIN);
         homeIntent.addCategory(Intent.CATEGORY_HOME);
-        PackageManager packageManager = context.createContextAsUser(userHandle, 0)
-                .getPackageManager();
+        PackageManager packageManager = context.getPackageManager();
         return packageManager.queryIntentActivities(homeIntent, 0);
     }
 }
