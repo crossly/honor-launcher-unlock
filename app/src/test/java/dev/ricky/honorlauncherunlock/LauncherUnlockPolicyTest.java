@@ -25,6 +25,12 @@ public class LauncherUnlockPolicyTest {
     }
 
     @Test
+    public void permissionControllerTargetMatchesGooglePackage() {
+        assertTrue(LauncherUnlockPolicy.isPermissionControllerTarget(
+                "com.google.android.permissioncontroller"));
+    }
+
+    @Test
     public void permissionControllerTargetRejectsOtherPackages() {
         assertFalse(LauncherUnlockPolicy.isPermissionControllerTarget("android"));
     }
@@ -39,6 +45,7 @@ public class LauncherUnlockPolicyTest {
                 LauncherUnlockPolicy.roleModelClassNames()[0]);
         assertEquals("com.android.permissioncontroller.role.model.Role",
                 LauncherUnlockPolicy.roleModelClassNames()[1]);
+        assertEquals("c2.p", LauncherUnlockPolicy.roleModelClassNames()[2]);
         assertEquals("android.app.role.HOME", LauncherUnlockPolicy.homeRoleName());
     }
 }

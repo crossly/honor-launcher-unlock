@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.os.Bundle;
 import android.os.UserHandle;
 
 import java.util.ArrayList;
@@ -34,6 +35,11 @@ public final class HookEntry implements IXposedHookLoadPackage {
             XposedBridge.log(TAG + ": loaded in " + lpparam.packageName
                     + " process=" + lpparam.processName);
             hookHomeRoleQualification(lpparam.classLoader);
+            hookHonorAntiMalPolicy(lpparam.classLoader);
+        } else if (lpparam.packageName != null
+                && lpparam.packageName.contains("permissioncontroller")) {
+            XposedBridge.log(TAG + ": ignoring non-target PermissionController package "
+                    + lpparam.packageName + " process=" + lpparam.processName);
         }
     }
 
@@ -78,6 +84,63 @@ public final class HookEntry implements IXposedHookLoadPackage {
             hookHomeRoleQualifiedPackages(roleClass);
             hookHomeRolePackageQualification(roleClass);
             hookLegacyHomeRolePackageQualification(roleClass);
+        }
+    }
+
+    private static void hookHonorAntiMalPolicy(ClassLoader classLoader) {
+        try {
+            XposedHelpers.findAndHookMethod(
+                    "com.hihonor.android.securitydiagnose.HwSecurityDiagnoseManager",
+                    classLoader,
+                    "getAntimalProtectionPolicy",
+                    int.class,
+                    Bundle.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            Bundle bundle = (Bundle) param.args[1];
+                            String packageName = bundle != null ? bundle.getString("pkg") : null;
+                            if (hasHomeActivity(packageName, getPermissionControllerContext())) {
+                                XposedBridge.log(TAG + ": allowing Honor HOME AntiMal policy for "
+                                        + packageName + " type=" + param.args[0]
+                                        + " user=" + bundle.getInt("userid", -1));
+                                param.setResult(0);
+                            }
+                        }
+                    });
+
+            XposedBridge.log(TAG + ": hooked HwSecurityDiagnoseManager"
+                    + ".getAntimalProtectionPolicy(int, Bundle) for HOME");
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": unavailable HwSecurityDiagnoseManager"
+                    + ".getAntimalProtectionPolicy(int, Bundle): " + t);
+            hookHonorAntiMalUiFallback(classLoader);
+        }
+    }
+
+    private static void hookHonorAntiMalUiFallback(ClassLoader classLoader) {
+        try {
+            XposedHelpers.findAndHookMethod(
+                    "r2.b",
+                    classLoader,
+                    "d",
+                    String.class,
+                    int.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            String packageName = (String) param.args[0];
+                            if (hasHomeActivity(packageName, getPermissionControllerContext())) {
+                                XposedBridge.log(TAG + ": bypassing Honor HOME AntiMal UI filter for "
+                                        + packageName + " user=" + param.args[1]);
+                                param.setResult(true);
+                            }
+                        }
+                    });
+
+            XposedBridge.log(TAG + ": hooked fallback r2.b.d(String, int) HOME AntiMal UI filter");
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": unavailable fallback r2.b.d(String, int): " + t);
         }
     }
 
@@ -144,6 +207,11 @@ public final class HookEntry implements IXposedHookLoadPackage {
                 Context.class) != null
                 || XposedHelpers.findMethodExactIfExists(
                         roleClass,
+                        "i",
+                        UserHandle.class,
+                        Context.class) != null
+                || XposedHelpers.findMethodExactIfExists(
+                        roleClass,
                         "isPackageQualifiedAsUser",
                         String.class,
                         UserHandle.class,
@@ -177,6 +245,33 @@ public final class HookEntry implements IXposedHookLoadPackage {
             XposedBridge.log(TAG + ": unavailable " + roleClass.getName()
                     + ".getQualifyingPackagesAsUser: " + t);
         }
+
+        try {
+            XposedHelpers.findAndHookMethod(
+                    roleClass,
+                    "i",
+                    UserHandle.class,
+                    Context.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            if (!isHomeRole(param.thisObject)) {
+                                return;
+                            }
+
+                            Context context = (Context) param.args[1];
+                            List<String> result = asMutableStringList(param.getResult());
+                            appendHomePackages(result, context);
+                            param.setResult(result);
+                        }
+                    });
+
+            XposedBridge.log(TAG + ": hooked " + roleClass.getName()
+                    + ".i(UserHandle, Context) for HOME");
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": unavailable " + roleClass.getName()
+                    + ".i(UserHandle, Context): " + t);
+        }
     }
 
     private static void hookHomeRolePackageQualification(Class<?> roleClass) {
@@ -209,6 +304,37 @@ public final class HookEntry implements IXposedHookLoadPackage {
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": unavailable " + roleClass.getName()
                     + ".isPackageQualifiedAsUser: " + t);
+        }
+
+        try {
+            XposedHelpers.findAndHookMethod(
+                    roleClass,
+                    "y",
+                    String.class,
+                    UserHandle.class,
+                    Context.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            if (!isHomeRole(param.thisObject)) {
+                                return;
+                            }
+
+                            String packageName = (String) param.args[0];
+                            Context context = (Context) param.args[2];
+                            if (hasHomeActivity(packageName, context)) {
+                                XposedBridge.log(TAG + ": qualifying obfuscated HOME package "
+                                        + packageName);
+                                param.setResult(true);
+                            }
+                        }
+                    });
+
+            XposedBridge.log(TAG + ": hooked " + roleClass.getName()
+                    + ".y(String, UserHandle, Context) for HOME");
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": unavailable " + roleClass.getName()
+                    + ".y(String, UserHandle, Context): " + t);
         }
     }
 
@@ -252,10 +378,15 @@ public final class HookEntry implements IXposedHookLoadPackage {
         try {
             Object roleName = XposedHelpers.callMethod(role, "getName");
             return LauncherUnlockPolicy.homeRoleName().equals(roleName);
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + ": failed to read role name");
-            XposedBridge.log(t);
-            return false;
+        } catch (Throwable ignored) {
+            try {
+                Object roleName = XposedHelpers.callMethod(role, "h");
+                return LauncherUnlockPolicy.homeRoleName().equals(roleName);
+            } catch (Throwable t) {
+                XposedBridge.log(TAG + ": failed to read role name");
+                XposedBridge.log(t);
+                return false;
+            }
         }
     }
 
@@ -307,5 +438,16 @@ public final class HookEntry implements IXposedHookLoadPackage {
         homeIntent.addCategory(Intent.CATEGORY_HOME);
         PackageManager packageManager = context.getPackageManager();
         return packageManager.queryIntentActivities(homeIntent, 0);
+    }
+
+    private static Context getPermissionControllerContext() {
+        try {
+            return (Context) XposedHelpers.callStaticMethod(
+                    XposedHelpers.findClass("android.app.ActivityThread", null),
+                    "currentApplication");
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": failed to get PermissionController context: " + t);
+            return null;
+        }
     }
 }
