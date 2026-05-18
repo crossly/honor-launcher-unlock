@@ -1,6 +1,9 @@
 package dev.ricky.honorlauncherunlock;
 
 public final class LauncherUnlockPolicy {
+    private static final String MODULE_PACKAGE = "dev.ricky.honorlauncherunlock";
+    private static final String LAUNCHER_PICKER_ACTIVITY =
+            "dev.ricky.honorlauncherunlock.LauncherPickerActivity";
     private static final String ANDROID_PACKAGE = "android";
     private static final String ANDROID_PROCESS = "android";
     private static final String SETTINGS_PACKAGE = "com.android.settings";
@@ -36,6 +39,18 @@ public final class LauncherUnlockPolicy {
         }
 
         return ACTION_REQUEST_ROLE.equals(action) && ROLE_HOME.equals(roleName);
+    }
+
+    public static boolean shouldRedirectRoleRequestToLauncherPicker(String action, String roleName) {
+        return ACTION_REQUEST_ROLE.equals(action) && ROLE_HOME.equals(roleName);
+    }
+
+    public static String modulePackageName() {
+        return MODULE_PACKAGE;
+    }
+
+    public static String launcherPickerActivityClassName() {
+        return LAUNCHER_PICKER_ACTIVITY;
     }
 
     public static String preferredActivityHelperClassName() {

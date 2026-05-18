@@ -48,6 +48,20 @@ public class LauncherUnlockPolicyTest {
     }
 
     @Test
+    public void homeRoleRequestFallbackShouldRedirect() {
+        assertTrue(LauncherUnlockPolicy.shouldRedirectRoleRequestToLauncherPicker(
+                "android.app.role.action.REQUEST_ROLE",
+                "android.app.role.HOME"));
+    }
+
+    @Test
+    public void homeSettingsActionShouldNotUseRoleFallback() {
+        assertFalse(LauncherUnlockPolicy.shouldRedirectRoleRequestToLauncherPicker(
+                "android.settings.HOME_SETTINGS",
+                null));
+    }
+
+    @Test
     public void nonHomeRoleRequestShouldNotRedirect() {
         assertFalse(LauncherUnlockPolicy.shouldRedirectToLauncherPicker(
                 "android.app.role.action.REQUEST_ROLE",
@@ -59,6 +73,18 @@ public class LauncherUnlockPolicyTest {
         assertFalse(LauncherUnlockPolicy.shouldRedirectToLauncherPicker(
                 "android.settings.WIFI_SETTINGS",
                 null));
+    }
+
+    @Test
+    public void launcherPickerPackageNameMatchesModulePackage() {
+        assertEquals("dev.ricky.honorlauncherunlock",
+                LauncherUnlockPolicy.modulePackageName());
+    }
+
+    @Test
+    public void launcherPickerClassNameMatchesActivity() {
+        assertEquals("dev.ricky.honorlauncherunlock.LauncherPickerActivity",
+                LauncherUnlockPolicy.launcherPickerActivityClassName());
     }
 
     @Test

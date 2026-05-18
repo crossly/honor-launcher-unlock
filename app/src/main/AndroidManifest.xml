@@ -34,6 +34,12 @@
             android:exported="true"
             android:theme="@style/Theme.LauncherUnlock.Dialog">
             <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter>
                 <action android:name="android.settings.HOME_SETTINGS" />
                 <action android:name="android.settings.MANAGE_DEFAULT_APPS_SETTINGS" />
 
